@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/hellotect2022go/nomadcoin/blockchain"
+	"github.com/hellotect2022go/nomadcoin/utils"
 )
 
 const port string = ":4000"
@@ -23,6 +26,10 @@ type URLDescription struct {
 	Payload     string `json:"payload, omitempty"`
 }
 
+type AddBlockBody struct {
+	Message string
+}
+
 func documentation(rw http.ResponseWriter, r *http.Request) {
 	data := []URLDescription{
 		{
@@ -36,6 +43,10 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			Description: "Add A Block",
 			Payload:     "data:string",
 		},
+		{
+			URL:         URL("/blocks"),
+			Method:      "GET",
+			Description: "See A Block"},
 	}
 	rw.Header().Add("Content-Type", "application/json")
 	// b, err := json.Marshal(data)
@@ -45,9 +56,23 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 
 }
 
+func blocks(rw http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		rw.Header().Add("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(blockchain.AllBlocks())
+	case "POST":
+		var addBlockBody AddBlockBody
+		utils.HandleErr(json.NewDecoder(r.Body).Decode(&addBlockBody))
+		blockchain.GetBlockChain().AddBlock(addBlockBody.Message)
+		rw.WriteHeader(http.StatusCreated)
+	}
+}
+
 func main() {
 	//explorer.Start()
 	http.HandleFunc("/", documentation)
+	http.HandleFunc("/blocks", blocks)
 	fmt.Printf("Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 
