@@ -1,12 +1,11 @@
 package main
 
 import (
-	"github.com/hellotect2022go/nomadcoin/explorer"
 	"github.com/hellotect2022go/nomadcoin/rest"
 )
 
 func main() {
-	go explorer.Start(5000)
+	//go explorer.Start(5000)
 	rest.Start(4000)
 
 }
