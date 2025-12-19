@@ -133,6 +133,6 @@ func GetBlockChain() *blockChain {
 			}
 		})
 	}
-	fmt.Printf("NewestHash: %s\nHeight: %d\n\n", bc.NewestHash, bc.Height)
+	//fmt.Printf("NewestHash: %s\nHeight: %d\n\n", bc.NewestHash, bc.Height)
 	return bc
 }

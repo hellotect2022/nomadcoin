@@ -59,18 +59,16 @@ func (b *Block) mine() {
 
 func createBlock(prevHash string, height int) *Block {
 	block := &Block{
-		Hash:         "",
-		PrevHash:     prevHash,
-		Height:       height,
-		Difficulty:   GetBlockChain().difficulty(),
-		Nonce:        0,
-		Transactions: []*Tx{makeCoinbaseTx("dhhan")},
+		Hash:       "",
+		PrevHash:   prevHash,
+		Height:     height,
+		Difficulty: GetBlockChain().difficulty(),
+		Nonce:      0,
+		//Transactions: []*Tx{makeCoinbaseTx("dhhan")},
 	}
 
 	block.mine()
-
-	//payload := block.Data + block.PrevHash + fmt.Sprint(block.Height)
-	//block.Hash = fmt.Sprintf("%x", sha256.Sum256([]byte(payload)))
+	block.Transactions = Mempool.TxToConfirm()
 	block.persist()
 	return block
 }

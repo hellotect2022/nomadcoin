@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hellotect2022go/nomadcoin/blockchain"
+	"github.com/hellotect2022go/nomadcoin/utils"
 )
 
 var port string
@@ -29,6 +30,11 @@ type uRLDescription struct {
 type balanceResponse struct {
 	Address string `json:"address"`
 	Balance int    `json:"balance"`
+}
+
+type addTxPayload struct {
+	To     string
+	Amount int
 }
 
 type errorResponse struct {
@@ -60,6 +66,11 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 		},
 		{
 			URL:         url("/balance/{address}"),
+			Method:      "GET",
+			Description: "Get TxOuts for an Address",
+		},
+		{
+			URL:         url("/mempool"),
 			Method:      "GET",
 			Description: "Get TxOuts for an Address",
 		},
@@ -123,6 +134,21 @@ func balance(rw http.ResponseWriter, r *http.Request) {
 
 }
 
+func mempool(rw http.ResponseWriter, r *http.Request) {
+	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Mempool.Txs))
+}
+
+func transactions(rw http.ResponseWriter, r *http.Request) {
+	var payload addTxPayload
+	utils.HandleErr(json.NewDecoder(r.Body).Decode(&payload))
+	err := blockchain.Mempool.AddTx(payload.To, payload.Amount)
+
+	if err != nil {
+		json.NewEncoder(rw).Encode(errorResponse{err.Error()})
+	}
+	rw.WriteHeader(http.StatusCreated)
+}
+
 func Start(aPort int) {
 	port = fmt.Sprintf(":%d", aPort)
 	router := mux.NewRouter()
@@ -132,6 +158,8 @@ func Start(aPort int) {
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
 	router.HandleFunc("/blocks/{hash}", block).Methods("GET")
 	router.HandleFunc("/balance/{address}", balance).Methods("GET")
+	router.HandleFunc("/mempool", mempool).Methods("GET")
+	router.HandleFunc("/transactions", transactions).Methods("POST")
 	fmt.Printf("Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 
