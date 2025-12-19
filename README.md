@@ -52,3 +52,17 @@ difficulty := 6
 
 채굴난이도 변경
 비트코인 : 매 2016개 블록마다 얼마나 빠르게 블록이 생성되는지 계산(2주, 1개당 10분)
+
+7 거래 
+ - 비트코인 
+- 무엇이 입력값을 생성하느가 ? Coinbase Transaction 
+ Tx
+  TxIn[$5(nico)]            : 거래하기 전에 너계좌에 있는 돈
+  TxOut[$0(nico), $5(you)]  : 거래가 끝났을때 각각의 사람들이 가지고 있는돈 
+
+exchange $5
+  Tx $5
+  TxIn[$10(nico)]
+  TxOut[$5(you) $5(nico)]
+
+

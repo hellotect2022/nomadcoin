@@ -33,8 +33,8 @@ func (bc *blockChain) restore(data []byte) {
 var bc *blockChain
 var once sync.Once // 몇개의 채널이 있던 한번만 실행되도록 하기
 
-func (bc *blockChain) AddBlock(data string) {
-	block := createBlock(data, bc.NewestHash, bc.Height+1)
+func (bc *blockChain) AddBlock() {
+	block := createBlock(bc.NewestHash, bc.Height+1)
 	bc.NewestHash = block.Hash
 	bc.Height = block.Height
 	bc.CurrentDifficulty = block.Difficulty // 블록 의 난이도 설정후 체인 난이도 업데이트
@@ -82,6 +82,40 @@ func (bc *blockChain) difficulty() int {
 	}
 }
 
+func (bc *blockChain) txOuts() []*TxOut {
+	var txOuts []*TxOut
+	blocks := bc.Blocks()
+	for _, block := range blocks {
+		for _, tx := range block.Transactions {
+			txOuts = append(txOuts, tx.TxOuts...)
+		}
+	}
+	return txOuts
+}
+
+func (bc *blockChain) TxOutsByAddress(address string) []*TxOut {
+	var ownedTxOuts []*TxOut
+	txOuts := bc.txOuts()
+
+	for _, txOut := range txOuts {
+		if txOut.Owner == address {
+			ownedTxOuts = append(ownedTxOuts, txOut)
+		}
+	}
+
+	return ownedTxOuts
+}
+
+func (bc *blockChain) BalanceByAddress(address string) int {
+	txOuts := bc.TxOutsByAddress(address)
+
+	var amount int
+	for _, txOut := range txOuts {
+		amount += txOut.Amount
+	}
+	return amount
+}
+
 func GetBlockChain() *blockChain {
 	if bc == nil {
 		once.Do(func() {
@@ -92,7 +126,7 @@ func GetBlockChain() *blockChain {
 			// restore bc from byte
 			checkpoint := db.Checkpoint()
 			if checkpoint == nil {
-				bc.AddBlock("Genesis Block")
+				bc.AddBlock()
 			} else {
 				fmt.Println("Restoring....")
 				bc.restore(checkpoint)
