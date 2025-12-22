@@ -21,27 +21,27 @@ type blockChain struct {
 	CurrentDifficulty int    `json:"currentDifficulty"`
 }
 
-func (bc *blockChain) persist() {
-	db.SaveBlockchain(utils.ToBytes(bc))
-}
+// Single Pattern 으로 만들기
+var bc *blockChain
+var once sync.Once // 몇개의 채널이 있던 한번만 실행되도록 하기
 
 func (bc *blockChain) restore(data []byte) {
 	utils.FromBytes(data, bc)
 }
 
-// Single Pattern 으로 만들기
-var bc *blockChain
-var once sync.Once // 몇개의 채널이 있던 한번만 실행되도록 하기
-
 func (bc *blockChain) AddBlock() {
-	block := createBlock(bc.NewestHash, bc.Height+1)
+	block := createBlock(bc.NewestHash, bc.Height+1, getDifficulty(bc))
 	bc.NewestHash = block.Hash
 	bc.Height = block.Height
 	bc.CurrentDifficulty = block.Difficulty // 블록 의 난이도 설정후 체인 난이도 업데이트
-	bc.persist()
+	persistBlockchain(bc)
 }
 
-func (bc *blockChain) Blocks() []*Block {
+func persistBlockchain(bc *blockChain) {
+	db.SaveBlockchain(utils.ToBytes(bc))
+}
+
+func Blocks(bc *blockChain) []*Block {
 	var blocks []*Block
 	hashCursor := bc.NewestHash
 
@@ -57,8 +57,8 @@ func (bc *blockChain) Blocks() []*Block {
 	return blocks
 }
 
-func (bc *blockChain) recalculateDifficulty() int {
-	allBlocks := bc.Blocks()
+func recalculateDifficulty(bc *blockChain) int {
+	allBlocks := Blocks(bc)
 	newestBlock := allBlocks[0]                              // 가장 최신의 블럭
 	lastRecalculatedBlock := allBlocks[difficultyInterval-1] // 이전 5번째의 블럭
 	actualTime := (newestBlock.Timestamp / 60) - (lastRecalculatedBlock.Timestamp / 60)
@@ -72,42 +72,48 @@ func (bc *blockChain) recalculateDifficulty() int {
 	return bc.CurrentDifficulty
 }
 
-func (bc *blockChain) difficulty() int {
+func getDifficulty(bc *blockChain) int {
 	if bc.Height == 0 {
 		return defaultDifficulty
 	} else if bc.Height%difficultyInterval == 0 {
-		return bc.recalculateDifficulty()
+		return recalculateDifficulty(bc)
 	} else {
 		return bc.CurrentDifficulty
 	}
 }
 
-func (bc *blockChain) txOuts() []*TxOut {
-	var txOuts []*TxOut
-	blocks := bc.Blocks()
-	for _, block := range blocks {
+func UTxOutsByAddress(address string, bc *blockChain) []*UTxOut {
+	var uTxOuts []*UTxOut
+	creatorTxs := make(map[string]bool)
+	for _, block := range Blocks(bc) {
 		for _, tx := range block.Transactions {
-			txOuts = append(txOuts, tx.TxOuts...)
+			// input 으로 사용된 output 을 소유한 트랜잭션들을 마킹
+			for _, input := range tx.TxIns {
+				if input.Owner == address {
+					creatorTxs[input.TxID] = true
+				}
+			}
+
+			for index, output := range tx.TxOuts {
+				// unspent txout 찾기
+				if output.Owner == address {
+					if _, ok := creatorTxs[tx.Id]; !ok {
+						uTxOut := &UTxOut{tx.Id, index, output.Amount}
+						if !isOnMempool(uTxOut) {
+							uTxOuts = append(uTxOuts, uTxOut)
+						}
+
+					}
+				}
+			}
 		}
 	}
-	return txOuts
+
+	return uTxOuts
 }
 
-func (bc *blockChain) TxOutsByAddress(address string) []*TxOut {
-	var ownedTxOuts []*TxOut
-	txOuts := bc.txOuts()
-
-	for _, txOut := range txOuts {
-		if txOut.Owner == address {
-			ownedTxOuts = append(ownedTxOuts, txOut)
-		}
-	}
-
-	return ownedTxOuts
-}
-
-func (bc *blockChain) BalanceByAddress(address string) int {
-	txOuts := bc.TxOutsByAddress(address)
+func BalanceByAddress(address string, bc *blockChain) int {
+	txOuts := UTxOutsByAddress(address, bc)
 
 	var amount int
 	for _, txOut := range txOuts {
@@ -117,22 +123,20 @@ func (bc *blockChain) BalanceByAddress(address string) int {
 }
 
 func GetBlockChain() *blockChain {
-	if bc == nil {
-		once.Do(func() {
-			bc = &blockChain{
-				Height: 0,
-			}
-			//search for checkpoint on the db
-			// restore bc from byte
-			checkpoint := db.Checkpoint()
-			if checkpoint == nil {
-				bc.AddBlock()
-			} else {
-				fmt.Println("Restoring....")
-				bc.restore(checkpoint)
-			}
-		})
-	}
+	once.Do(func() {
+		bc = &blockChain{
+			Height: 0,
+		}
+		//search for checkpoint on the db
+		// restore bc from byte
+		checkpoint := db.Checkpoint()
+		if checkpoint == nil {
+			bc.AddBlock()
+		} else {
+			fmt.Println("Restoring....")
+			bc.restore(checkpoint)
+		}
+	})
 	//fmt.Printf("NewestHash: %s\nHeight: %d\n\n", bc.NewestHash, bc.Height)
 	return bc
 }

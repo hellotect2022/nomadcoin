@@ -69,3 +69,14 @@ exchange $5
   mempool : (굉장히 빠름) 확정되지 않은 거래내역들을 기록해 두는 곳 
              확정되는 시점은 채굴자가 거래내역을 블록에 삽입하는 순간 (거래수수료 떼감, 채굴자는 다른 거래내역보다 먼저 처리해줌)
 
+Tx1 
+ TxIn[COINBASE]
+ TxOut[$5(you)]     <-- spent TxOut
+
+Tx2
+ TxIns[Tx1.TxOuts[0]] 이전 트랜잭션 output 참조
+ TxOuts[$5(me)] <-- spent TxOutt
+
+Tx2
+ TxIns[Tx2.TxOuts[0]]
+ TxOuts[$3(you), $2(me)] <---- unspent TxOut

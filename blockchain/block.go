@@ -11,14 +11,14 @@ import (
 )
 
 type Block struct {
-	Transactions []*Tx  `json:"transactions"`
-	Hash         string `json:"hash"`
-	PrevHash     string `json:"prevHash,omitempty"`
-	Height       int    `json:"height"`
+	Hash     string `json:"hash"`
+	PrevHash string `json:"prevHash,omitempty"`
+	Height   int    `json:"height"`
 	// 자격증명용
-	Difficulty int `json:"difficulty"` //  hash 앞에 오게될 0개의 n 갯수로 조절
-	Nonce      int `json:"nonce"`      // 블록체인에서 채굴자들이 수정할 수 있는 유일한 값
-	Timestamp  int `json:"timestamp"`
+	Difficulty   int   `json:"difficulty"` //  hash 앞에 오게될 0개의 n 갯수로 조절
+	Nonce        int   `json:"nonce"`      // 블록체인에서 채굴자들이 수정할 수 있는 유일한 값
+	Timestamp    int   `json:"timestamp"`
+	Transactions []*Tx `json:"transactions"`
 }
 
 var ErrNotFound = errors.New("block not found")
@@ -57,12 +57,12 @@ func (b *Block) mine() {
 	}
 }
 
-func createBlock(prevHash string, height int) *Block {
+func createBlock(prevHash string, height, diff int) *Block {
 	block := &Block{
 		Hash:       "",
 		PrevHash:   prevHash,
 		Height:     height,
-		Difficulty: GetBlockChain().difficulty(),
+		Difficulty: diff,
 		Nonce:      0,
 		//Transactions: []*Tx{makeCoinbaseTx("dhhan")},
 	}
